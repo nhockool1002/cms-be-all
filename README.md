@@ -40,7 +40,7 @@ cp apps/api/.env.example apps/api/.env   # adjust DATABASE_URL if you changed po
 pnpm --filter @cms-be-all/api prisma:migrate
 pnpm --filter @cms-be-all/api prisma:seed   # creates an admin user + a demo board
 
-pnpm dev:api    # http://localhost:3001/api
+pnpm dev:api    # http://localhost:13001/api
 pnpm dev:web    # http://localhost:3000
 ```
 
