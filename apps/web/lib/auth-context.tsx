@@ -22,10 +22,15 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
-  const [loading, setLoading] = useState<boolean>(() => Boolean(getAccessToken()));
+  // Fixed initial value (not derived from localStorage) so server and client render
+  // identically on first paint -- reading getAccessToken() here caused a hydration
+  // mismatch, since it always returns null during SSR but may return a real token
+  // on the client. The real check happens client-only, in the effect below.
+  const [loading, setLoading] = useState<boolean>(true);
 
   const loadUser = useCallback(async () => {
     if (!getAccessToken()) {
+      setLoading(false);
       return;
     }
     try {

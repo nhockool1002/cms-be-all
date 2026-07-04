@@ -5,6 +5,16 @@ import { useParams } from 'next/navigation';
 import type { PaginatedResult, Post, Thread } from '@cms-be-all/shared';
 import { apiFetch } from '../../../lib/api-client';
 import { useAuth } from '../../../lib/auth-context';
+import { formatDateTime } from '../../../lib/format-date';
+import { Breadcrumb } from '../../../components/breadcrumb';
+
+function Avatar({ username }: { username: string }) {
+  return (
+    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-sky-700 text-xl font-bold text-white">
+      {username.slice(0, 1).toUpperCase()}
+    </div>
+  );
+}
 
 export default function ThreadPage() {
   const { id } = useParams<{ id: string }>();
@@ -44,26 +54,57 @@ export default function ThreadPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{thread?.title ?? 'Loading…'}</h1>
-      {error && <p className="text-red-600">{error}</p>}
+    <div>
+      <Breadcrumb
+        items={[
+          { label: 'Home', href: '/' },
+          ...(thread?.boardSlug
+            ? [{ label: thread.boardName ?? thread.boardSlug, href: `/boards/${thread.boardSlug}` }]
+            : []),
+          { label: thread?.title ?? 'Loading…' },
+        ]}
+      />
 
-      <ul className="space-y-3">
-        {posts?.items.map((post) => (
-          <li key={post.id} className="rounded border border-gray-200 bg-white p-4">
-            <div
-              className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: post.bodyHtml }}
-            />
-          </li>
+      <h1 className="mb-4 text-lg font-bold text-slate-800">{thread?.title ?? 'Loading…'}</h1>
+
+      {error && (
+        <p className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-700">{error}</p>
+      )}
+
+      <div className="space-y-3">
+        {posts?.items.map((post, index) => (
+          <div key={post.id} className="overflow-hidden rounded border border-slate-300 bg-white">
+            <div className="flex items-center justify-between bg-slate-100 px-4 py-1.5 text-xs text-slate-500">
+              <span>{index === 0 ? 'Original Post' : `Reply #${index}`}</span>
+              <span>
+                {formatDateTime(post.createdAt)}
+                {post.editedAt && ' (edited)'}
+              </span>
+            </div>
+            <div className="flex gap-4 p-4">
+              <div className="flex w-24 shrink-0 flex-col items-center gap-1 text-center">
+                <Avatar username={post.author.username} />
+                <span className="font-semibold text-slate-800">{post.author.username}</span>
+                <span className="text-xs text-slate-400">{post.author.postCount} posts</span>
+              </div>
+              <div
+                className="prose prose-sm max-w-none flex-1 border-l border-slate-200 pl-4"
+                dangerouslySetInnerHTML={{ __html: post.bodyHtml }}
+              />
+            </div>
+          </div>
         ))}
-      </ul>
+        {!posts && !error && <div className="rounded border border-slate-300 bg-white p-4 text-slate-500">Loading…</div>}
+      </div>
 
       {user ? (
-        <form onSubmit={handleReply} className="space-y-3 rounded border border-gray-200 bg-white p-4">
-          <h2 className="font-medium">Reply</h2>
+        <form
+          onSubmit={handleReply}
+          className="mt-4 space-y-3 rounded border border-slate-300 bg-white p-4"
+        >
+          <h2 className="font-semibold text-slate-800">Post Reply</h2>
           <textarea
-            className="w-full rounded border border-gray-300 px-3 py-2"
+            className="w-full rounded border border-slate-300 px-3 py-2"
             rows={4}
             value={reply}
             onChange={(e) => setReply(e.target.value)}
@@ -72,13 +113,13 @@ export default function ThreadPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded bg-sky-600 px-4 py-2 text-white hover:bg-sky-500 disabled:opacity-50"
           >
             {submitting ? 'Posting…' : 'Reply'}
           </button>
         </form>
       ) : (
-        <p className="text-gray-500">Log in to reply.</p>
+        <p className="mt-4 text-sm text-slate-500">Log in to reply.</p>
       )}
     </div>
   );

@@ -17,25 +17,64 @@ export class ThreadsService {
     const board = await this.boardsService.findBySlugOrThrow(boardSlug);
     const { page, pageSize } = pagination;
 
-    const [items, total] = await Promise.all([
+    const [threads, total] = await Promise.all([
       this.prisma.thread.findMany({
         where: { boardId: board.id, isDeleted: false },
         orderBy: [{ isPinned: 'desc' }, { lastPostAt: 'desc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: { author: { select: { username: true } } },
       }),
       this.prisma.thread.count({ where: { boardId: board.id, isDeleted: false } }),
     ]);
+
+    const items = await Promise.all(threads.map((thread) => this.withStats(thread)));
 
     return { items, total, page, pageSize };
   }
 
   async findByIdOrThrow(id: string) {
-    const thread = await this.prisma.thread.findUnique({ where: { id } });
+    const thread = await this.prisma.thread.findUnique({
+      where: { id },
+      include: {
+        author: { select: { username: true } },
+        board: { select: { slug: true, name: true } },
+      },
+    });
     if (!thread || thread.isDeleted) {
       throw new NotFoundException('thread not found');
     }
-    return thread;
+    return this.withStats(thread);
+  }
+
+  private async withStats<
+    T extends {
+      id: string;
+      author: { username: string };
+      board?: { slug: string; name: string };
+    },
+  >(thread: T) {
+    const [postCount, lastPost] = await Promise.all([
+      this.prisma.post.count({ where: { threadId: thread.id, isDeleted: false } }),
+      this.prisma.post.findFirst({
+        where: { threadId: thread.id, isDeleted: false },
+        orderBy: { createdAt: 'desc' },
+        include: { author: { select: { username: true } } },
+      }),
+    ]);
+
+    const { author, board, ...rest } = thread;
+
+    return {
+      ...rest,
+      authorUsername: author.username,
+      boardSlug: board?.slug,
+      boardName: board?.name,
+      replyCount: Math.max(postCount - 1, 0),
+      lastPost: lastPost
+        ? { authorUsername: lastPost.author.username, createdAt: lastPost.createdAt }
+        : null,
+    };
   }
 
   async create(boardSlug: string, authorId: string, dto: CreateThreadDto) {

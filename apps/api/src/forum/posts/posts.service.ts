@@ -16,15 +16,36 @@ export class PostsService {
     await this.threadsService.findByIdOrThrow(threadId);
     const { page, pageSize } = pagination;
 
-    const [items, total] = await Promise.all([
+    const [posts, total] = await Promise.all([
       this.prisma.post.findMany({
         where: { threadId, isDeleted: false },
         orderBy: { createdAt: 'asc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: {
+          author: { select: { id: true, username: true, avatarUrl: true, createdAt: true } },
+        },
       }),
       this.prisma.post.count({ where: { threadId, isDeleted: false } }),
     ]);
+
+    const authorIds = [...new Set(posts.map((post) => post.authorId))];
+    const postCounts = await this.prisma.post.groupBy({
+      by: ['authorId'],
+      where: { authorId: { in: authorIds }, isDeleted: false },
+      _count: { _all: true },
+    });
+    const postCountByAuthor = new Map(postCounts.map((row) => [row.authorId, row._count._all]));
+
+    const items = posts.map((post) => ({
+      ...post,
+      author: {
+        username: post.author.username,
+        avatarUrl: post.author.avatarUrl,
+        joinedAt: post.author.createdAt,
+        postCount: postCountByAuthor.get(post.authorId) ?? 0,
+      },
+    }));
 
     return { items, total, page, pageSize };
   }

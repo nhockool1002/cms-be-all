@@ -7,10 +7,43 @@ import { CreateBoardDto } from './dto/create-board.dto';
 export class BoardsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list() {
-    return this.prisma.board.findMany({
+  async list() {
+    const boards = await this.prisma.board.findMany({
       orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
     });
+
+    return Promise.all(boards.map((board) => this.withStats(board)));
+  }
+
+  private async withStats<T extends { id: string }>(board: T) {
+    const [threadCount, postCount, lastPost] = await Promise.all([
+      this.prisma.thread.count({ where: { boardId: board.id, isDeleted: false } }),
+      this.prisma.post.count({
+        where: { thread: { boardId: board.id }, isDeleted: false },
+      }),
+      this.prisma.post.findFirst({
+        where: { thread: { boardId: board.id }, isDeleted: false },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          author: { select: { username: true } },
+          thread: { select: { id: true, title: true } },
+        },
+      }),
+    ]);
+
+    return {
+      ...board,
+      threadCount,
+      postCount,
+      lastPost: lastPost
+        ? {
+            threadId: lastPost.thread.id,
+            threadTitle: lastPost.thread.title,
+            authorUsername: lastPost.author.username,
+            createdAt: lastPost.createdAt,
+          }
+        : null,
+    };
   }
 
   async findBySlugOrThrow(slug: string) {
