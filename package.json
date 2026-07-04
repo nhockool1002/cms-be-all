@@ -1,0 +1,25 @@
+{
+  "name": "cms-be-all",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "postinstall": "pnpm --filter @cms-be-all/shared build",
+    "dev:api": "pnpm --filter @cms-be-all/api start:dev",
+    "dev:web": "pnpm --filter @cms-be-all/web dev",
+    "build": "pnpm -r --if-present build",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "test:e2e": "pnpm --filter @cms-be-all/api test:e2e",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  }
+}

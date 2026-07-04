@@ -1,0 +1,281 @@
+// Domains implemented here: Identity & Access, Forum Core.
+// Full cross-domain design (Social, CMS, Blog, Media, Moderation, Notifications, Admin)
+// is documented in /docs/DATABASE.md and rolled out in later phases (see /docs/ROADMAP.md).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Identity & Access ----------
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  username     String   @unique @db.VarChar(32)
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash")
+  displayName  String   @map("display_name") @db.VarChar(64)
+  avatarUrl    String?  @map("avatar_url")
+  status       UserStatus @default(ACTIVE)
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  lastLoginAt  DateTime? @map("last_login_at")
+
+  roles              UserRole[]
+  refreshTokens       RefreshToken[]
+  threads             Thread[]
+  posts               Post[]
+  postRevisions       PostRevision[]
+  pollVotes           PollVote[]
+  threadSubscriptions ThreadSubscription[]
+
+  @@map("users")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  PENDING
+
+  @@map("user_status")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique @db.VarChar(32)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  permissions RolePermission[]
+  users       UserRole[]
+  boardPermissions BoardPermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(uuid()) @db.Uuid
+  key         String @unique @db.VarChar(64)
+  description String?
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId     String   @map("user_id") @db.Uuid
+  roleId     String   @map("role_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  userAgent String?  @map("user_agent")
+  ipAddress String?  @map("ip_address")
+  expiresAt DateTime @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ---------- Forum Core ----------
+
+model Board {
+  id            String   @id @default(uuid()) @db.Uuid
+  parentId      String?  @map("parent_id") @db.Uuid
+  slug          String   @unique @db.VarChar(80)
+  name          String   @db.VarChar(100)
+  description   String?
+  displayOrder  Int      @default(0) @map("display_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  parent   Board?  @relation("BoardHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Board[] @relation("BoardHierarchy")
+
+  threads     Thread[]
+  permissions BoardPermission[]
+
+  @@index([parentId])
+  @@map("boards")
+}
+
+model BoardPermission {
+  boardId       String  @map("board_id") @db.Uuid
+  roleId        String  @map("role_id") @db.Uuid
+  canView       Boolean @default(true) @map("can_view")
+  canPost       Boolean @default(true) @map("can_post")
+  canModerate   Boolean @default(false) @map("can_moderate")
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  role  Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([boardId, roleId])
+  @@map("board_permissions")
+}
+
+model Thread {
+  id          String   @id @default(uuid()) @db.Uuid
+  boardId     String   @map("board_id") @db.Uuid
+  authorId    String   @map("author_id") @db.Uuid
+  title       String   @db.VarChar(200)
+  slug        String   @db.VarChar(220)
+  isPinned    Boolean  @default(false) @map("is_pinned")
+  isLocked    Boolean  @default(false) @map("is_locked")
+  isDeleted   Boolean  @default(false) @map("is_deleted")
+  viewCount   Int      @default(0) @map("view_count")
+  lastPostAt  DateTime? @map("last_post_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  posts         Post[]
+  tags          ThreadTag[]
+  poll          Poll?
+  subscriptions ThreadSubscription[]
+
+  @@unique([boardId, slug])
+  @@index([boardId, lastPostAt])
+  @@map("threads")
+}
+
+model Post {
+  id            String   @id @default(uuid()) @db.Uuid
+  threadId      String   @map("thread_id") @db.Uuid
+  authorId      String   @map("author_id") @db.Uuid
+  parentPostId  String?  @map("parent_post_id") @db.Uuid
+  bodyMarkdown  String   @map("body_markdown")
+  bodyHtml      String   @map("body_html")
+  isFirstPost   Boolean  @default(false) @map("is_first_post")
+  isDeleted     Boolean  @default(false) @map("is_deleted")
+  editedAt      DateTime? @map("edited_at")
+  editedBy      String?  @map("edited_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  thread     Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author     User   @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  parentPost Post?  @relation("PostReplies", fields: [parentPostId], references: [id], onDelete: SetNull)
+  replies    Post[] @relation("PostReplies")
+
+  revisions PostRevision[]
+
+  @@index([threadId, createdAt])
+  @@index([authorId])
+  @@map("posts")
+}
+
+model PostRevision {
+  id           String   @id @default(uuid()) @db.Uuid
+  postId       String   @map("post_id") @db.Uuid
+  bodyMarkdown String   @map("body_markdown")
+  editedById   String   @map("edited_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  post     Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  editedBy User @relation(fields: [editedById], references: [id], onDelete: Restrict)
+
+  @@index([postId])
+  @@map("post_revisions")
+}
+
+model Tag {
+  id      String @id @default(uuid()) @db.Uuid
+  name    String @unique @db.VarChar(40)
+  slug    String @unique @db.VarChar(48)
+
+  threads ThreadTag[]
+
+  @@map("tags")
+}
+
+model ThreadTag {
+  threadId String @map("thread_id") @db.Uuid
+  tagId    String @map("tag_id") @db.Uuid
+
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([threadId, tagId])
+  @@map("thread_tags")
+}
+
+model Poll {
+  id          String   @id @default(uuid()) @db.Uuid
+  threadId    String   @unique @map("thread_id") @db.Uuid
+  question    String   @db.VarChar(200)
+  allowMultiple Boolean @default(false) @map("allow_multiple")
+  closesAt    DateTime? @map("closes_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  thread  Thread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  options PollOption[]
+
+  @@map("polls")
+}
+
+model PollOption {
+  id     String @id @default(uuid()) @db.Uuid
+  pollId String @map("poll_id") @db.Uuid
+  text   String @db.VarChar(200)
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@map("poll_options")
+}
+
+model PollVote {
+  pollOptionId String   @map("poll_option_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  votedAt      DateTime @default(now()) @map("voted_at")
+
+  pollOption PollOption @relation(fields: [pollOptionId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([pollOptionId, userId])
+  @@map("poll_votes")
+}
+
+model ThreadSubscription {
+  userId    String   @map("user_id") @db.Uuid
+  threadId  String   @map("thread_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@id([userId, threadId])
+  @@map("thread_subscriptions")
+}
