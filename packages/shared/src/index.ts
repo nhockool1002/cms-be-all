@@ -103,3 +103,26 @@ export interface Page {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface UserProfile {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  joinedAt: string;
+  roles: string[];
+  rankTitle: string;
+  postCount: number;
+  threadCount: number;
+  followerCount: number;
+  followingCount: number;
+}
+
+export interface ProfileComment {
+  id: string;
+  profileUserId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+  author: { username: string };
+}

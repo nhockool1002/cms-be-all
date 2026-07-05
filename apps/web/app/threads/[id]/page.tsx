@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import type { PaginatedResult, Post, Thread } from '@cms-be-all/shared';
@@ -7,37 +8,8 @@ import { apiFetch } from '../../../lib/api-client';
 import { useAuth } from '../../../lib/auth-context';
 import { formatDateTime } from '../../../lib/format-date';
 import { Breadcrumb } from '../../../components/breadcrumb';
-
-function Avatar({ username }: { username: string }) {
-  return (
-    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-sky-700 text-xl font-bold text-white">
-      {username.slice(0, 1).toUpperCase()}
-    </div>
-  );
-}
-
-const ROLE_BADGE_STYLE: Record<string, string> = {
-  admin: 'bg-red-600 text-white',
-  moderator: 'bg-emerald-600 text-white',
-};
-
-function RoleBadges({ roles }: { roles: string[] }) {
-  const badgeRoles = roles.filter((role) => role in ROLE_BADGE_STYLE);
-  if (badgeRoles.length === 0) return null;
-
-  return (
-    <div className="flex flex-col items-center gap-1">
-      {badgeRoles.map((role) => (
-        <span
-          key={role}
-          className={`rounded px-2 py-0.5 text-[11px] font-semibold uppercase ${ROLE_BADGE_STYLE[role]}`}
-        >
-          {role === 'admin' ? 'Administrator' : 'Moderator'}
-        </span>
-      ))}
-    </div>
-  );
-}
+import { Avatar } from '../../../components/avatar';
+import { RoleBadges } from '../../../components/role-badges';
 
 export default function ThreadPage() {
   const { id } = useParams<{ id: string }>();
@@ -107,7 +79,12 @@ export default function ThreadPage() {
             <div className="flex gap-4 p-4">
               <div className="flex w-28 shrink-0 flex-col items-center gap-1 text-center">
                 <Avatar username={post.author.username} />
-                <span className="font-semibold text-slate-800">{post.author.username}</span>
+                <Link
+                  href={`/profile/${post.author.username}`}
+                  className="font-semibold text-slate-800 hover:text-sky-700 hover:underline"
+                >
+                  {post.author.username}
+                </Link>
                 <RoleBadges roles={post.author.roles} />
                 <span className="text-xs text-slate-500">{post.author.rankTitle}</span>
                 <span className="text-xs text-slate-400">{post.author.postCount} posts</span>

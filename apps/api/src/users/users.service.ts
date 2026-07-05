@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { rankTitleForPostCount } from '../common/utils/rank-title';
 
 const DEFAULT_ROLE_NAME = 'member';
 
@@ -47,5 +48,36 @@ export class UsersService {
       where: { id: userId },
       data: { lastLoginAt: new Date() },
     });
+  }
+
+  async getPublicProfile(username: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { username },
+      include: { roles: { include: { role: true } } },
+    });
+    if (!user) {
+      throw new NotFoundException('user not found');
+    }
+
+    const [postCount, threadCount, followerCount, followingCount] = await Promise.all([
+      this.prisma.post.count({ where: { authorId: user.id, isDeleted: false } }),
+      this.prisma.thread.count({ where: { authorId: user.id, isDeleted: false } }),
+      this.prisma.follow.count({ where: { followingId: user.id } }),
+      this.prisma.follow.count({ where: { followerId: user.id } }),
+    ]);
+
+    return {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      joinedAt: user.createdAt,
+      roles: user.roles.map((r) => r.role.name),
+      rankTitle: rankTitleForPostCount(postCount),
+      postCount,
+      threadCount,
+      followerCount,
+      followingCount,
+    };
   }
 }
