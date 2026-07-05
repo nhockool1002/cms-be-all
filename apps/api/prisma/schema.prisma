@@ -1,5 +1,5 @@
-// Domains implemented here: Identity & Access, Forum Core.
-// Full cross-domain design (Social, CMS, Blog, Media, Moderation, Notifications, Admin)
+// Domains implemented here: Identity & Access, Forum Core, Social.
+// Full cross-domain design (CMS, Blog, Media, Moderation, Notifications, Admin)
 // is documented in /docs/DATABASE.md and rolled out in later phases (see /docs/ROADMAP.md).
 
 generator client {
@@ -33,6 +33,17 @@ model User {
   postRevisions       PostRevision[]
   pollVotes           PollVote[]
   threadSubscriptions ThreadSubscription[]
+
+  conversations           ConversationParticipant[]
+  messages                Message[]
+  ownedGroups             Group[]                  @relation("GroupOwner")
+  groupMemberships        GroupMember[]
+  groupDiscussions        GroupDiscussion[]
+  groupDiscussionReplies  GroupDiscussionReply[]
+  profileCommentsReceived ProfileComment[]         @relation("ProfileComments")
+  profileCommentsAuthored ProfileComment[]         @relation("AuthoredProfileComments")
+  following               Follow[]                 @relation("Following")
+  followers               Follow[]                 @relation("Followers")
 
   @@map("users")
 }
@@ -278,4 +289,151 @@ model ThreadSubscription {
 
   @@id([userId, threadId])
   @@map("thread_subscriptions")
+}
+
+// ---------- Social ----------
+
+model Conversation {
+  id        String   @id @default(uuid()) @db.Uuid
+  subject   String?  @db.VarChar(200)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  conversationId String    @map("conversation_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  lastReadAt     DateTime? @map("last_read_at")
+  joinedAt       DateTime  @default(now()) @map("joined_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  senderId       String   @map("sender_id") @db.Uuid
+  body           String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Restrict)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+enum GroupVisibility {
+  PUBLIC
+  MODERATED
+  INVITE_ONLY
+
+  @@map("group_visibility")
+}
+
+model Group {
+  id          String          @id @default(uuid()) @db.Uuid
+  name        String          @db.VarChar(100)
+  slug        String          @unique @db.VarChar(120)
+  description String?
+  ownerId     String          @map("owner_id") @db.Uuid
+  visibility  GroupVisibility @default(PUBLIC)
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  owner       User              @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  members     GroupMember[]
+  discussions GroupDiscussion[]
+
+  @@map("groups")
+}
+
+enum GroupMemberRole {
+  OWNER
+  MODERATOR
+  MEMBER
+
+  @@map("group_member_role")
+}
+
+enum GroupMemberStatus {
+  ACTIVE
+  PENDING
+  INVITED
+
+  @@map("group_member_status")
+}
+
+model GroupMember {
+  groupId  String            @map("group_id") @db.Uuid
+  userId   String            @map("user_id") @db.Uuid
+  role     GroupMemberRole   @default(MEMBER)
+  status   GroupMemberStatus @default(ACTIVE)
+  joinedAt DateTime          @default(now()) @map("joined_at")
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@map("group_members")
+}
+
+model GroupDiscussion {
+  id        String   @id @default(uuid()) @db.Uuid
+  groupId   String   @map("group_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  title     String   @db.VarChar(200)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  group   Group                  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author  User                   @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  replies GroupDiscussionReply[]
+
+  @@map("group_discussions")
+}
+
+model GroupDiscussionReply {
+  id           String   @id @default(uuid()) @db.Uuid
+  discussionId String   @map("discussion_id") @db.Uuid
+  authorId     String   @map("author_id") @db.Uuid
+  body         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  discussion GroupDiscussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  author     User            @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@map("group_discussion_replies")
+}
+
+model ProfileComment {
+  id            String   @id @default(uuid()) @db.Uuid
+  profileUserId String   @map("profile_user_id") @db.Uuid
+  authorId      String   @map("author_id") @db.Uuid
+  body          String
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  profileUser User @relation("ProfileComments", fields: [profileUserId], references: [id], onDelete: Cascade)
+  author      User @relation("AuthoredProfileComments", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([profileUserId, createdAt])
+  @@map("profile_comments")
+}
+
+model Follow {
+  followerId  String   @map("follower_id") @db.Uuid
+  followingId String   @map("following_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  User @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@map("follows")
 }

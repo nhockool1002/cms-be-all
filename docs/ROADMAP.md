@@ -1,14 +1,14 @@
 # Roadmap
 
-Phases 0–7 (monorepo scaffold, Docker, Identity & Access, Forum Core, CI/CD, frontend
-skeleton, initial publish) are implemented. The remaining domains from
+Phases 0–8 (monorepo scaffold, Docker, Identity & Access, Forum Core, CI/CD, frontend
+redesign, initial publish, Social) are implemented. The remaining domains from
 [`DATABASE.md`](./DATABASE.md) are future work, each following the module pattern
 established by `apps/api/src/forum/` (a `*.module.ts` + `*.service.ts` +
 `*.controller.ts` + `dto/` + `*.spec.ts`, plus a Prisma migration adding that domain's
 tables):
 
-- **Phase 8 — Social**: private messaging (conversations/messages), social groups,
-  profile comments, follows.
+- ~~**Phase 8 — Social**: private messaging (conversations/messages), social groups,
+  profile comments, follows.~~ *(done — `apps/api/src/social/`)*
 - **Phase 9 — CMS pages**: pages, versioning, widgets, navigation menus, plus an
   admin UI in the web app for managing them.
 - **Phase 10 — Blog**: blog posts/categories, polymorphic comments (shared with CMS

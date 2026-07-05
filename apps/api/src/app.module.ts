@@ -7,6 +7,10 @@ import { UsersModule } from './users/users.module';
 import { BoardsModule } from './forum/boards/boards.module';
 import { ThreadsModule } from './forum/threads/threads.module';
 import { PostsModule } from './forum/posts/posts.module';
+import { PmModule } from './social/pm/pm.module';
+import { GroupsModule } from './social/groups/groups.module';
+import { ProfileCommentsModule } from './social/profile-comments/profile-comments.module';
+import { FollowsModule } from './social/follows/follows.module';
 
 @Module({
   imports: [
@@ -17,6 +21,10 @@ import { PostsModule } from './forum/posts/posts.module';
     BoardsModule,
     ThreadsModule,
     PostsModule,
+    PmModule,
+    GroupsModule,
+    ProfileCommentsModule,
+    FollowsModule,
   ],
   controllers: [AppController],
 })
