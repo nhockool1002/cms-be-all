@@ -88,3 +88,18 @@ export interface Post {
   createdAt: string;
   editedAt: string | null;
 }
+
+export type PageStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+
+export interface Page {
+  id: string;
+  slug: string;
+  title: string;
+  status: PageStatus;
+  authorId: string;
+  bodyMarkdown: string;
+  bodyHtml: string;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

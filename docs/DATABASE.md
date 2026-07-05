@@ -13,10 +13,10 @@ but structurally distinct from any specific product:
   `entity_type` + `entity_id` pair rather than one join table per content type.
 - UUID primary keys throughout.
 
-**Implementation status**: Domains 1–3 (Identity & Access, Forum Core, Social) are
+**Implementation status**: Domains 1–4 (Identity & Access, Forum Core, Social, CMS) are
 implemented now as Prisma models in
 [`apps/api/prisma/schema.prisma`](../apps/api/prisma/schema.prisma), with real
-migrations and tests. Domains 4–9 are specified here so the full shape of the system is
+migrations and tests. Domains 5–9 are specified here so the full shape of the system is
 designed up front, and are built out incrementally — see [`ROADMAP.md`](./ROADMAP.md)
 for the phase-by-phase plan. Each new domain follows the exact module pattern
 established by Forum Core (`module/`, `*.service.ts`, `*.controller.ts`, `dto/`,
@@ -61,7 +61,7 @@ established by Forum Core (`module/`, `*.service.ts`, `*.controller.ts`, `dto/`,
 | `profile_comments` | Public "wall" comments on a user's profile |
 | `follows` | User-to-user follow/friend relationships |
 
-## 4. CMS — *roadmap*
+## 4. CMS — *implemented*
 
 | Table | Purpose |
 |---|---|

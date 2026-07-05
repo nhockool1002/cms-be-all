@@ -59,6 +59,7 @@ function QuickLoginForm() {
 
 export function NavBar() {
   const { user, loading, logout } = useAuth();
+  const isAdmin = Boolean(user?.roles.includes('admin'));
 
   return (
     <>
@@ -99,6 +100,14 @@ export function NavBar() {
           >
             Boards
           </Link>
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600"
+            >
+              Admin
+            </Link>
+          )}
         </div>
       </nav>
     </>

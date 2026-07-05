@@ -45,6 +45,9 @@ model User {
   following               Follow[]                 @relation("Following")
   followers               Follow[]                 @relation("Followers")
 
+  pages        Page[]
+  pageVersions PageVersion[]
+
   @@map("users")
 }
 
@@ -436,4 +439,80 @@ model Follow {
 
   @@id([followerId, followingId])
   @@map("follows")
+}
+
+// ---------- CMS ----------
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+
+  @@map("page_status")
+}
+
+model Page {
+  id           String     @id @default(uuid()) @db.Uuid
+  slug         String     @unique @db.VarChar(120)
+  title        String     @db.VarChar(200)
+  status       PageStatus @default(DRAFT)
+  authorId     String     @map("author_id") @db.Uuid
+  bodyMarkdown String     @map("body_markdown")
+  bodyHtml     String     @map("body_html")
+  publishedAt  DateTime?  @map("published_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  author   User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  versions PageVersion[]
+
+  @@map("pages")
+}
+
+model PageVersion {
+  id           String   @id @default(uuid()) @db.Uuid
+  pageId       String   @map("page_id") @db.Uuid
+  bodyMarkdown String   @map("body_markdown")
+  editedById   String   @map("edited_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  page     Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  editedBy User @relation(fields: [editedById], references: [id], onDelete: Restrict)
+
+  @@index([pageId])
+  @@map("page_versions")
+}
+
+model Widget {
+  id           String   @id @default(uuid()) @db.Uuid
+  type         String   @db.VarChar(50)
+  placement    String   @db.VarChar(50)
+  config       Json
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([placement, displayOrder])
+  @@map("widgets")
+}
+
+model Menu {
+  id   String @id @default(uuid()) @db.Uuid
+  name String @unique @db.VarChar(50)
+
+  items MenuItem[]
+
+  @@map("menus")
+}
+
+model MenuItem {
+  id           String @id @default(uuid()) @db.Uuid
+  menuId       String @map("menu_id") @db.Uuid
+  label        String @db.VarChar(100)
+  url          String @db.VarChar(255)
+  displayOrder Int    @default(0) @map("display_order")
+
+  menu Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+
+  @@index([menuId, displayOrder])
+  @@map("menu_items")
 }

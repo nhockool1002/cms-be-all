@@ -11,6 +11,9 @@ import { PmModule } from './social/pm/pm.module';
 import { GroupsModule } from './social/groups/groups.module';
 import { ProfileCommentsModule } from './social/profile-comments/profile-comments.module';
 import { FollowsModule } from './social/follows/follows.module';
+import { PagesModule } from './cms/pages/pages.module';
+import { WidgetsModule } from './cms/widgets/widgets.module';
+import { MenusModule } from './cms/menus/menus.module';
 
 @Module({
   imports: [
@@ -25,6 +28,9 @@ import { FollowsModule } from './social/follows/follows.module';
     GroupsModule,
     ProfileCommentsModule,
     FollowsModule,
+    PagesModule,
+    WidgetsModule,
+    MenusModule,
   ],
   controllers: [AppController],
 })
