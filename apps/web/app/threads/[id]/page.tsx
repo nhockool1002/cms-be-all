@@ -16,6 +16,29 @@ function Avatar({ username }: { username: string }) {
   );
 }
 
+const ROLE_BADGE_STYLE: Record<string, string> = {
+  admin: 'bg-red-600 text-white',
+  moderator: 'bg-emerald-600 text-white',
+};
+
+function RoleBadges({ roles }: { roles: string[] }) {
+  const badgeRoles = roles.filter((role) => role in ROLE_BADGE_STYLE);
+  if (badgeRoles.length === 0) return null;
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      {badgeRoles.map((role) => (
+        <span
+          key={role}
+          className={`rounded px-2 py-0.5 text-[11px] font-semibold uppercase ${ROLE_BADGE_STYLE[role]}`}
+        >
+          {role === 'admin' ? 'Administrator' : 'Moderator'}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default function ThreadPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -82,10 +105,15 @@ export default function ThreadPage() {
               </span>
             </div>
             <div className="flex gap-4 p-4">
-              <div className="flex w-24 shrink-0 flex-col items-center gap-1 text-center">
+              <div className="flex w-28 shrink-0 flex-col items-center gap-1 text-center">
                 <Avatar username={post.author.username} />
                 <span className="font-semibold text-slate-800">{post.author.username}</span>
+                <RoleBadges roles={post.author.roles} />
+                <span className="text-xs text-slate-500">{post.author.rankTitle}</span>
                 <span className="text-xs text-slate-400">{post.author.postCount} posts</span>
+                <span className="text-xs text-slate-400">
+                  Joined {formatDateTime(post.author.joinedAt)}
+                </span>
               </div>
               <div
                 className="prose prose-sm max-w-none flex-1 border-l border-slate-200 pl-4"

@@ -74,6 +74,8 @@ export interface PostAuthorSummary {
   avatarUrl: string | null;
   joinedAt: string;
   postCount: number;
+  roles: string[];
+  rankTitle: string;
 }
 
 export interface Post {

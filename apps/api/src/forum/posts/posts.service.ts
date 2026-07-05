@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { PrismaService } from '../../prisma/prisma.service';
 import { ThreadsService } from '../threads/threads.service';
 import { renderMarkdown } from '../../common/utils/render-markdown';
+import { rankTitleForPostCount } from '../../common/utils/rank-title';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 
@@ -23,7 +24,15 @@ export class PostsService {
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
-          author: { select: { id: true, username: true, avatarUrl: true, createdAt: true } },
+          author: {
+            select: {
+              id: true,
+              username: true,
+              avatarUrl: true,
+              createdAt: true,
+              roles: { include: { role: true } },
+            },
+          },
         },
       }),
       this.prisma.post.count({ where: { threadId, isDeleted: false } }),
@@ -37,15 +46,20 @@ export class PostsService {
     });
     const postCountByAuthor = new Map(postCounts.map((row) => [row.authorId, row._count._all]));
 
-    const items = posts.map((post) => ({
-      ...post,
-      author: {
-        username: post.author.username,
-        avatarUrl: post.author.avatarUrl,
-        joinedAt: post.author.createdAt,
-        postCount: postCountByAuthor.get(post.authorId) ?? 0,
-      },
-    }));
+    const items = posts.map((post) => {
+      const postCount = postCountByAuthor.get(post.authorId) ?? 0;
+      return {
+        ...post,
+        author: {
+          username: post.author.username,
+          avatarUrl: post.author.avatarUrl,
+          joinedAt: post.author.createdAt,
+          postCount,
+          roles: post.author.roles.map((r) => r.role.name),
+          rankTitle: rankTitleForPostCount(postCount),
+        },
+      };
+    });
 
     return { items, total, page, pageSize };
   }
